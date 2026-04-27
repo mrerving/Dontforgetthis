@@ -71,24 +71,42 @@ hr.div{border:none;border-top:1px solid var(--border);margin:24px 0}
 ::-webkit-scrollbar{width:6px}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
 @media(max-width:400px){.card-actions,.finline{flex-wrap:wrap}}
+.fs-ok{color:#4caf50}.fs-warn{color:#ff9800}.fs-err{color:var(--ob)}
+.reconnect-bar{background:rgba(255,152,0,.1);border:1px solid rgba(255,152,0,.3);border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:.85rem;display:flex;align-items:center;justify-content:space-between;gap:8px}
 </style>
 </head>
 <body>
 <div class="app">
   <div class="header">
     <h1>Don't Forget This</h1>
-    <button class="icon-btn" id="themeBtn" title="Toggle theme">🌙</button>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="icon-btn" id="btnDownload" title="Download app as standalone file">⬇️</button>
+      <button class="icon-btn" id="themeBtn" title="Toggle theme">🌙</button>
+    </div>
   </div>
   <div class="tabs">
     <button class="tab active" data-tab="agenda">Agenda</button>
     <button class="tab" data-tab="manage">Manage</button>
   </div>
-  <div class="view active" id="view-agenda"><div id="agenda-content"></div></div>
+  <div class="view active" id="view-agenda">
+    <div class="reconnect-bar" id="agendaReconnectBar" style="display:none">
+      <span>⚠️ Data file needs permission to auto-save</span>
+      <button class="btn btn-s btn-sm" id="btnReconnectAgenda">Reconnect</button>
+    </div>
+    <div id="agenda-content"></div>
+  </div>
   <div class="view" id="view-manage">
     <div class="iobar">
       <button class="btn btn-s" id="btnExport">Export JSON</button>
       <button class="btn btn-s" id="btnImport">Import JSON</button>
       <input type="file" id="importFile" accept=".json" style="display:none">
+    </div>
+    <div id="fileStatusSection" style="display:none">
+      <div class="fcard" style="margin-bottom:16px">
+        <h3>Data File</h3>
+        <div id="fileStatusText" style="font-size:.85rem;margin-bottom:12px"></div>
+        <div id="fileActions" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+      </div>
     </div>
     <div class="fcard" id="fcard">
       <h3 id="fTitle">Add Reminder</h3>
@@ -135,7 +153,172 @@ let C=ld(KC,['General','Health','Work','Personal']);
 let theme=ld(KT,'dark');
 let editId=null;
 
-function saveAll(){sv(KR,R);sv(KC,C)}
+function saveAll(){
+  sv(KR,R);sv(KC,C);
+  if(fileHandle&&fileStatus!=='needs-permission')writeFileData();
+}
+
+// IDB helpers for persisting FileSystemFileHandle across sessions
+const IDB_NAME='dft_app',IDB_STORE='fs_handles';
+function idbOpen(){return new Promise((res,rej)=>{const r=indexedDB.open(IDB_NAME,1);r.onupgradeneeded=e=>e.target.result.createObjectStore(IDB_STORE);r.onsuccess=e=>res(e.target.result);r.onerror=rej})}
+async function idbGetHandle(){try{const db=await idbOpen();return new Promise((res,rej)=>{const t=db.transaction(IDB_STORE,'readonly');const r=t.objectStore(IDB_STORE).get('dataFile');r.onsuccess=e=>res(e.target.result??null);r.onerror=rej})}catch{return null}}
+async function idbSetHandle(fh){try{const db=await idbOpen();return new Promise((res,rej)=>{const t=db.transaction(IDB_STORE,'readwrite');t.objectStore(IDB_STORE).put(fh,'dataFile');t.oncomplete=res;t.onerror=rej})}catch{}}
+async function idbClearHandle(){try{const db=await idbOpen();return new Promise((res,rej)=>{const t=db.transaction(IDB_STORE,'readwrite');t.objectStore(IDB_STORE).delete('dataFile');t.oncomplete=res;t.onerror=rej})}catch{}}
+
+// File System Access API state
+let fileHandle=null;
+let fileStatus='none'; // 'none'|'synced'|'needs-permission'|'error'
+let fileStatusMsg='';
+const FS_SUPPORTED=typeof showOpenFilePicker!=='undefined';
+
+// Write guard to handle rapid successive saves
+let _writing=false,_pendingWrite=false;
+async function writeFileData(){
+  if(!fileHandle)return;
+  if(_writing){_pendingWrite=true;return}
+  _writing=true;
+  try{
+    const payload=JSON.stringify({reminders:R,categories:C,updatedAt:new Date().toISOString()},null,2);
+    const w=await fileHandle.createWritable();
+    await w.write(payload);await w.close();
+    fileStatus='synced';fileStatusMsg='';renderFileStatus();
+  }catch(e){
+    if(e.name==='NotAllowedError'){fileStatus='needs-permission';renderFileStatus();}
+    else{fileStatus='error';fileStatusMsg=e.message;renderFileStatus();}
+  }finally{
+    _writing=false;
+    if(_pendingWrite){_pendingWrite=false;writeFileData();}
+  }
+}
+
+async function readFileData(){
+  if(!fileHandle)return null;
+  try{
+    const file=await fileHandle.getFile();
+    const text=await file.text();
+    const d=JSON.parse(text);
+    if(!Array.isArray(d.reminders))return null;
+    return{reminders:d.reminders,categories:Array.isArray(d.categories)?d.categories:null};
+  }catch(e){
+    if(e.name==='NotAllowedError')fileStatus='needs-permission';
+    return null;
+  }
+}
+
+async function verifyPermission(fh,withPrompt){
+  try{
+    const s=await fh.queryPermission({mode:'readwrite'});
+    if(s==='granted')return'granted';
+    if(withPrompt)return await fh.requestPermission({mode:'readwrite'});
+    return s;
+  }catch{return'denied'}
+}
+
+async function initFileSystem(){
+  const fh=await idbGetHandle();
+  if(!fh){fileStatus='none';renderFileStatus();return}
+  fileHandle=fh;
+  const perm=await verifyPermission(fh,false);
+  if(perm==='granted'){
+    const data=await readFileData();
+    if(data){
+      R=data.reminders;
+      if(data.categories)C=data.categories;
+      sv(KR,R);sv(KC,C);
+      renderAgenda();
+      const mv=document.getElementById('view-manage');
+      if(mv.classList.contains('active'))renderManage();
+    }
+    fileStatus='synced';
+  }else if(perm==='prompt'){
+    fileStatus='needs-permission';
+  }else{
+    await idbClearHandle();fileHandle=null;fileStatus='none';
+  }
+  renderFileStatus();
+}
+
+async function connectFile(){
+  if(!FS_SUPPORTED)return;
+  try{
+    const[fh]=await showOpenFilePicker({id:'dft-data',startIn:'documents',types:[{description:'JSON data file',accept:{'application/json':['.json']}}],excludeAcceptAllOption:false});
+    fileHandle=fh;await idbSetHandle(fh);
+    const data=await readFileData();
+    if(data){R=data.reminders;if(data.categories)C=data.categories;sv(KR,R);sv(KC,C);}
+    await writeFileData();renderManage();renderAgenda();
+  }catch(e){if(e.name!=='AbortError'){fileStatus='error';fileStatusMsg=e.message;renderFileStatus();}}
+}
+
+async function createFile(){
+  if(!FS_SUPPORTED)return;
+  try{
+    const fh=await showSaveFilePicker({id:'dft-data',startIn:'documents',suggestedName:'reminders.json',types:[{description:'JSON data file',accept:{'application/json':['.json']}}]});
+    fileHandle=fh;await idbSetHandle(fh);
+    await writeFileData();renderManage();renderAgenda();
+  }catch(e){if(e.name!=='AbortError'){fileStatus='error';fileStatusMsg=e.message;renderFileStatus();}}
+}
+
+async function reconnectFile(){
+  if(!fileHandle)return;
+  const perm=await verifyPermission(fileHandle,true);
+  if(perm==='granted'){
+    const data=await readFileData();
+    if(data){R=data.reminders;if(data.categories)C=data.categories;sv(KR,R);sv(KC,C);renderAgenda();renderManage();}
+    fileStatus='synced';
+  }else{fileStatus='needs-permission';}
+  renderFileStatus();
+}
+
+async function disconnectFile(){
+  await idbClearHandle();fileHandle=null;fileStatus='none';fileStatusMsg='';renderFileStatus();
+}
+
+function renderFileStatus(){
+  const sec=document.getElementById('fileStatusSection');
+  const bar=document.getElementById('agendaReconnectBar');
+  if(!sec||!bar)return;
+  if(!FS_SUPPORTED){sec.style.display='none';bar.style.display='none';return}
+  sec.style.display='';
+  const txt=document.getElementById('fileStatusText');
+  const acts=document.getElementById('fileActions');
+  bar.style.display='none';
+  if(fileStatus==='none'){
+    txt.innerHTML='<span class="fs-warn">No file connected — data lives in browser storage only</span>';
+    acts.innerHTML='<button class="btn btn-p btn-sm" id="fa-open">Open existing file</button><button class="btn btn-s btn-sm" id="fa-new">Create new file</button>';
+    acts.querySelector('#fa-open').onclick=connectFile;
+    acts.querySelector('#fa-new').onclick=createFile;
+  }else if(fileStatus==='synced'){
+    txt.innerHTML=`<span class="fs-ok">✓ Synced · ${esc(fileHandle.name)}</span>`;
+    acts.innerHTML='<button class="btn btn-s btn-sm" id="fa-dis">Disconnect</button>';
+    acts.querySelector('#fa-dis').onclick=disconnectFile;
+  }else if(fileStatus==='needs-permission'){
+    txt.innerHTML=`<span class="fs-warn">⚠ Permission needed to access ${esc(fileHandle?.name||'file')}</span>`;
+    acts.innerHTML='<button class="btn btn-p btn-sm" id="fa-rec">Reconnect</button><button class="btn btn-s btn-sm" id="fa-dis">Disconnect</button>';
+    acts.querySelector('#fa-rec').onclick=reconnectFile;
+    acts.querySelector('#fa-dis').onclick=disconnectFile;
+    bar.style.display='flex';
+  }else if(fileStatus==='error'){
+    txt.innerHTML=`<span class="fs-err">Error: ${esc(fileStatusMsg)}</span>`;
+    acts.innerHTML='<button class="btn btn-p btn-sm" id="fa-open">Connect different file</button><button class="btn btn-s btn-sm" id="fa-dis">Disconnect</button>';
+    acts.querySelector('#fa-open').onclick=connectFile;
+    acts.querySelector('#fa-dis').onclick=disconnectFile;
+  }
+}
+
+async function downloadApp(){
+  try{
+    let html;
+    if(location.protocol==='file:'){
+      html='<!DOCTYPE html>\n'+document.documentElement.outerHTML;
+    }else{
+      const r=await fetch(location.href);html=await r.text();
+    }
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([html],{type:'text/html'}));
+    a.download='dont-forget-this.html';a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),10000);
+  }catch(e){alert('Download failed: '+e.message)}
+}
 
 // Theme
 function applyTheme(){
@@ -186,7 +369,7 @@ function wakeSnoozes(){
   const now=new Date();
   let ch=false;
   R.forEach(r=>{if(r.state==='snoozed'&&new Date(r.nextDue)<=now){r.state='pending';ch=true}});
-  if(ch)sv(KR,R);
+  if(ch)saveAll();
 }
 
 // Agenda
@@ -264,7 +447,7 @@ function toggleSP(id,close=false){
 function doDone(id){
   const r=R.find(x=>x.id===id);if(!r)return;
   r.nextDue=addIv(new Date(),r.interval).toISOString();r.state='pending';
-  sv(KR,R);renderAgenda();
+  saveAll();renderAgenda();
 }
 
 function doSnooze(id){
@@ -276,11 +459,11 @@ function doSnooze(id){
   else if(u==='hours')d.setHours(d.getHours()+v);
   else d.setDate(d.getDate()+v);
   r.nextDue=d.toISOString();r.state='snoozed';
-  sv(KR,R);renderAgenda();
+  saveAll();renderAgenda();
 }
 
 // Manage
-function renderManage(){renderList();renderCats();populateCatDrop()}
+function renderManage(){renderList();renderCats();populateCatDrop();renderFileStatus()}
 
 function renderList(){
   const el=document.getElementById('manageList');
@@ -346,7 +529,7 @@ document.getElementById('btnCancel').addEventListener('click',cancelEdit);
 
 function delR(id){
   if(!confirm('Delete this reminder?'))return;
-  R=R.filter(r=>r.id!==id);sv(KR,R);renderManage();
+  R=R.filter(r=>r.id!==id);saveAll();renderManage();
 }
 
 // Categories
@@ -454,8 +637,11 @@ document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
 }));
 
 // Init
+document.getElementById('btnDownload').addEventListener('click',downloadApp);
+document.getElementById('btnReconnectAgenda').addEventListener('click',reconnectFile);
 applyTheme();renderAgenda();
 setInterval(renderAgenda,60000);
+if(FS_SUPPORTED)initFileSystem();
 </script>
 </body>
 </html>
