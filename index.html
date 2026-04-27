@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Don't Forget This</title>
+<style>
+:root[data-theme="dark"]{--bg:#0f0f13;--card:#1a1a24;--border:#2a2a3a;--text:#e8e8f0;--muted:#8888a0;--accent:#7c6af7;--ob:#ff6b6b;--obg:rgba(255,107,107,.08);--btnp:#7c6af7;--btns:#2a2a3a;--btnst:#e8e8f0;--inp:#0f0f13;--inpb:#2a2a3a;--sop:.6}
+:root[data-theme="light"]{--bg:#f5f5f8;--card:#fff;--border:#e0e0ea;--text:#1a1a2e;--muted:#66667a;--accent:#6c5ce7;--ob:#e55353;--obg:rgba(229,83,83,.06);--btnp:#6c5ce7;--btns:#e8e8f2;--btnst:#1a1a2e;--inp:#fff;--inpb:#d0d0e0;--sop:.65}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;transition:background .2s,color .2s}
+.app{max-width:600px;margin:0 auto;padding:0 16px 80px}
+.header{display:flex;align-items:center;justify-content:space-between;padding:20px 0 12px;border-bottom:1px solid var(--border);margin-bottom:20px}
+.header h1{font-size:1.3rem;font-weight:700;letter-spacing:-.02em}
+.icon-btn{background:var(--btns);border:none;border-radius:8px;padding:8px 10px;cursor:pointer;color:var(--text);font-size:1.1rem;transition:opacity .15s}
+.icon-btn:hover{opacity:.8}
+.tabs{display:flex;gap:4px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:24px}
+.tab{flex:1;background:none;border:none;padding:8px 12px;border-radius:7px;cursor:pointer;font-size:.9rem;font-weight:500;color:var(--muted);transition:background .15s,color .15s}
+.tab.active{background:var(--accent);color:#fff}
+.view{display:none}.view.active{display:block}
+.group{margin-bottom:28px}
+.group-label{font-size:.75rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;padding-left:2px}
+.group-label.ol{color:var(--ob)}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px}
+.card.overdue{border-left:3px solid var(--ob);background:var(--obg)}
+.card.snoozed{opacity:var(--sop)}
+.card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}
+.card-info{flex:1;min-width:0}
+.card-title{font-size:1rem;font-weight:600;margin-bottom:4px;word-break:break-word}
+.card-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.badge{font-size:.7rem;font-weight:600;padding:2px 8px;border-radius:20px;background:var(--btns);color:var(--muted)}
+.tl{font-size:.8rem;color:var(--muted)}.tl.ot{color:var(--ob);font-weight:500}
+.card-actions{display:flex;gap:8px}
+.btn{border:none;border-radius:8px;padding:7px 14px;font-size:.85rem;font-weight:600;cursor:pointer;transition:opacity .15s,transform .1s}
+.btn:active{transform:scale(.97)}.btn:hover{opacity:.85}
+.btn-p{background:var(--btnp);color:#fff}
+.btn-s{background:var(--btns);color:var(--btnst)}
+.btn-d{background:rgba(255,107,107,.15);color:var(--ob)}
+.btn-sm{padding:5px 10px;font-size:.8rem}
+.sp{display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+.sp.open{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.sp label{font-size:.8rem;color:var(--muted)}
+.sp-row{display:flex;gap:6px;align-items:center}
+input,select{background:var(--inp);border:1px solid var(--inpb);border-radius:8px;padding:8px 12px;color:var(--text);font-size:.9rem;font-family:inherit;transition:border-color .15s;width:100%}
+input:focus,select:focus{outline:none;border-color:var(--accent)}
+input[type=number]{width:70px}
+select{cursor:pointer}
+.empty{text-align:center;padding:48px 24px;color:var(--muted)}
+.empty .emo{font-size:2.5rem;margin-bottom:12px}
+.empty p{font-size:.95rem}
+.sec-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.sec-title{font-size:1rem;font-weight:700}
+.li{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.li-info{flex:1;min-width:0}
+.li-title{font-size:.9rem;font-weight:600}
+.li-sub{font-size:.78rem;color:var(--muted);margin-top:2px}
+.li-acts{display:flex;gap:6px}
+.fcard{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px}
+.fcard h3{font-size:.95rem;font-weight:700;margin-bottom:16px}
+.frow{margin-bottom:14px}
+.frow label{display:block;font-size:.8rem;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em}
+.finline{display:flex;gap:8px;align-items:center}
+.finline input[type=number]{width:80px;flex-shrink:0}
+.finline select{flex:1}
+.facts{display:flex;gap:8px;margin-top:18px}
+hr.div{border:none;border-top:1px solid var(--border);margin:24px 0}
+.ci{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)}
+.ci:last-child{border-bottom:none}
+.cn{flex:1;font-size:.9rem}
+.iobar{display:flex;gap:8px;margin-bottom:20px}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+@media(max-width:400px){.card-actions,.finline{flex-wrap:wrap}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1>Don't Forget This</h1>
+    <button class="icon-btn" id="themeBtn" title="Toggle theme">🌙</button>
+  </div>
+  <div class="tabs">
+    <button class="tab active" data-tab="agenda">Agenda</button>
+    <button class="tab" data-tab="manage">Manage</button>
+  </div>
+  <div class="view active" id="view-agenda"><div id="agenda-content"></div></div>
+  <div class="view" id="view-manage">
+    <div class="iobar">
+      <button class="btn btn-s" id="btnExport">Export JSON</button>
+      <button class="btn btn-s" id="btnImport">Import JSON</button>
+      <input type="file" id="importFile" accept=".json" style="display:none">
+    </div>
+    <div class="fcard" id="fcard">
+      <h3 id="fTitle">Add Reminder</h3>
+      <div class="frow"><label>Title</label><input type="text" id="fT" placeholder="e.g. Take medication" maxlength="100"></div>
+      <div class="frow"><label>Category</label><select id="fC"></select></div>
+      <div class="frow"><label>Repeat Every</label>
+        <div class="finline">
+          <input type="number" id="fIV" min="1" value="1">
+          <select id="fIU"><option value="minutes">Minutes</option><option value="hours">Hours</option><option value="days" selected>Days</option><option value="weeks">Weeks</option><option value="months">Months</option><option value="years">Years</option></select>
+        </div>
+      </div>
+      <div class="frow"><label>Default Snooze</label>
+        <div class="finline">
+          <input type="number" id="fSV" min="1" value="2">
+          <select id="fSU"><option value="minutes">Minutes</option><option value="hours" selected>Hours</option><option value="days">Days</option></select>
+        </div>
+      </div>
+      <div class="facts">
+        <button class="btn btn-p" id="btnSave">Add Reminder</button>
+        <button class="btn btn-s" id="btnCancel" style="display:none">Cancel</button>
+      </div>
+    </div>
+    <div class="sec-hdr"><span class="sec-title">All Reminders</span></div>
+    <div id="manageList"></div>
+    <hr class="div">
+    <div class="sec-hdr"><span class="sec-title">Categories</span><button class="btn btn-s btn-sm" id="btnAddCat">+ Add</button></div>
+    <div id="addCatRow" style="display:none;margin-bottom:12px">
+      <div style="display:flex;gap:8px">
+        <input type="text" id="newCatIn" placeholder="Category name" maxlength="40" style="flex:1">
+        <button class="btn btn-p btn-sm" id="btnSaveCat">Save</button>
+        <button class="btn btn-s btn-sm" id="btnCancelCat">Cancel</button>
+      </div>
+    </div>
+    <div id="catList"></div>
+  </div>
+</div>
+<script>
+const KR='reminders_v1',KC='categories_v1',KT='theme_v1';
+function ld(k,fb){try{const v=localStorage.getItem(k);return v===null?fb:JSON.parse(v)}catch{return fb}}
+function sv(k,v){localStorage.setItem(k,JSON.stringify(v))}
+
+let R=ld(KR,[]);
+let C=ld(KC,['General','Health','Work','Personal']);
+let theme=ld(KT,'dark');
+let editId=null;
+
+function saveAll(){sv(KR,R);sv(KC,C)}
+
+// Theme
+function applyTheme(){
+  document.documentElement.setAttribute('data-theme',theme);
+  document.getElementById('themeBtn').textContent=theme==='dark'?'🌙':'☀️';
+}
+document.getElementById('themeBtn').addEventListener('click',()=>{theme=theme==='dark'?'light':'dark';sv(KT,theme);applyTheme()});
+
+// Utilities
+function uid(){return crypto.randomUUID()}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+
+function addIv(date,iv){
+  const d=new Date(date),v=Number(iv.value);
+  if(iv.unit==='minutes')d.setMinutes(d.getMinutes()+v);
+  else if(iv.unit==='hours')d.setHours(d.getHours()+v);
+  else if(iv.unit==='days')d.setDate(d.getDate()+v);
+  else if(iv.unit==='weeks')d.setDate(d.getDate()+v*7);
+  else if(iv.unit==='months')d.setMonth(d.getMonth()+v);
+  else if(iv.unit==='years')d.setFullYear(d.getFullYear()+v);
+  return d;
+}
+
+function fmtRel(iso){
+  const d=new Date(iso),now=new Date(),diff=d-now,abs=Math.abs(diff);
+  const mins=Math.floor(abs/6e4),hrs=Math.floor(abs/36e5),days=Math.floor(abs/864e5);
+  if(diff<0){
+    if(mins<2)return'just now';
+    if(mins<60)return mins+'m ago';
+    if(hrs<24)return hrs+'h ago';
+    if(days===1)return'yesterday';
+    return days+' days ago';
+  }else{
+    if(mins<2)return'in a moment';
+    if(mins<60)return'in '+mins+'m';
+    if(hrs<24)return'in '+hrs+'h';
+    if(days===1)return'tomorrow';
+    return'in '+days+' days';
+  }
+}
+
+function fmtIv(iv){
+  const v=iv.value,u=iv.unit;
+  return v==1?'Every '+u.slice(0,-1):'Every '+v+' '+u;
+}
+
+function wakeSnoozes(){
+  const now=new Date();
+  let ch=false;
+  R.forEach(r=>{if(r.state==='snoozed'&&new Date(r.nextDue)<=now){r.state='pending';ch=true}});
+  if(ch)sv(KR,R);
+}
+
+// Agenda
+function groupR(){
+  wakeSnoozes();
+  const now=new Date();
+  const ts=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  const tm=new Date(ts);tm.setDate(ts.getDate()+1);
+  const da=new Date(tm);da.setDate(tm.getDate()+1);
+  const g={overdue:[],today:[],tomorrow:[],upcoming:[]};
+  R.forEach(r=>{
+    if(r.state==='snoozed')return;
+    const d=new Date(r.nextDue);
+    if(d<ts)g.overdue.push(r);
+    else if(d<tm)g.today.push(r);
+    else if(d<da)g.tomorrow.push(r);
+    else g.upcoming.push(r);
+  });
+  Object.values(g).forEach(a=>a.sort((a,b)=>new Date(a.nextDue)-new Date(b.nextDue)));
+  return g;
+}
+
+function renderCard(r,overdue){
+  const tr=fmtRel(r.nextDue);
+  return`<div class="card${overdue?' overdue':''}" id="c-${r.id}">
+    <div class="card-top"><div class="card-info">
+      <div class="card-title">${esc(r.title)}</div>
+      <div class="card-meta">
+        ${r.category?`<span class="badge">${esc(r.category)}</span>`:''}
+        <span class="tl${overdue?' ot':''}">${tr}</span>
+      </div>
+    </div></div>
+    <div class="card-actions">
+      <button class="btn btn-p btn-sm" data-done="${r.id}">Done</button>
+      <button class="btn btn-s btn-sm" data-snooze="${r.id}">Snooze</button>
+    </div>
+    <div class="sp" id="sp-${r.id}">
+      <label>Snooze for:</label>
+      <div class="sp-row">
+        <input type="number" id="sv-${r.id}" min="1" value="${r.snooze.value}" style="width:65px">
+        <select id="su-${r.id}">
+          <option value="minutes"${r.snooze.unit==='minutes'?' selected':''}>Minutes</option>
+          <option value="hours"${r.snooze.unit==='hours'?' selected':''}>Hours</option>
+          <option value="days"${r.snooze.unit==='days'?' selected':''}>Days</option>
+        </select>
+        <button class="btn btn-p btn-sm" data-csnooze="${r.id}">OK</button>
+        <button class="btn btn-s btn-sm" data-xsnooze="${r.id}">✕</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderAgenda(){
+  const el=document.getElementById('agenda-content');
+  const g=groupR();
+  const tot=g.overdue.length+g.today.length+g.tomorrow.length+g.upcoming.length;
+  if(!tot){el.innerHTML='<div class="empty"><div class="emo">✅</div><p>All caught up! Nothing due.</p></div>';return}
+  let h='';
+  if(g.overdue.length)h+=`<div class="group"><div class="group-label ol">Overdue (${g.overdue.length})</div>${g.overdue.map(r=>renderCard(r,true)).join('')}</div>`;
+  if(g.today.length)h+=`<div class="group"><div class="group-label">Today</div>${g.today.map(r=>renderCard(r,false)).join('')}</div>`;
+  if(g.tomorrow.length)h+=`<div class="group"><div class="group-label">Tomorrow</div>${g.tomorrow.map(r=>renderCard(r,false)).join('')}</div>`;
+  if(g.upcoming.length)h+=`<div class="group"><div class="group-label">Upcoming</div>${g.upcoming.map(r=>renderCard(r,false)).join('')}</div>`;
+  el.innerHTML=h;
+  el.querySelectorAll('[data-done]').forEach(b=>b.addEventListener('click',()=>doDone(b.dataset.done)));
+  el.querySelectorAll('[data-snooze]').forEach(b=>b.addEventListener('click',()=>toggleSP(b.dataset.snooze)));
+  el.querySelectorAll('[data-csnooze]').forEach(b=>b.addEventListener('click',()=>doSnooze(b.dataset.csnooze)));
+  el.querySelectorAll('[data-xsnooze]').forEach(b=>b.addEventListener('click',()=>toggleSP(b.dataset.xsnooze,true)));
+}
+
+function toggleSP(id,close=false){
+  const p=document.getElementById('sp-'+id);
+  if(p)close?p.classList.remove('open'):p.classList.toggle('open');
+}
+
+function doDone(id){
+  const r=R.find(x=>x.id===id);if(!r)return;
+  r.nextDue=addIv(new Date(),r.interval).toISOString();r.state='pending';
+  sv(KR,R);renderAgenda();
+}
+
+function doSnooze(id){
+  const r=R.find(x=>x.id===id);if(!r)return;
+  const v=parseInt(document.getElementById('sv-'+id).value)||r.snooze.value;
+  const u=document.getElementById('su-'+id).value;
+  const d=new Date();
+  if(u==='minutes')d.setMinutes(d.getMinutes()+v);
+  else if(u==='hours')d.setHours(d.getHours()+v);
+  else d.setDate(d.getDate()+v);
+  r.nextDue=d.toISOString();r.state='snoozed';
+  sv(KR,R);renderAgenda();
+}
+
+// Manage
+function renderManage(){renderList();renderCats();populateCatDrop()}
+
+function renderList(){
+  const el=document.getElementById('manageList');
+  if(!R.length){el.innerHTML='<p style="color:var(--muted);font-size:.9rem;padding:8px 0">No reminders yet.</p>';return}
+  el.innerHTML=R.map(r=>`<div class="li">
+    <div class="li-info">
+      <div class="li-title">${esc(r.title)}</div>
+      <div class="li-sub">${r.category?esc(r.category)+' · ':''}${fmtIv(r.interval)}</div>
+    </div>
+    <div class="li-acts">
+      <button class="btn btn-s btn-sm" data-edit="${r.id}">Edit</button>
+      <button class="btn btn-d btn-sm" data-del="${r.id}">Delete</button>
+    </div>
+  </div>`).join('');
+  el.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click',()=>startEdit(b.dataset.edit)));
+  el.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',()=>delR(b.dataset.del)));
+}
+
+function populateCatDrop(){
+  const s=document.getElementById('fC'),cur=s.value;
+  s.innerHTML=C.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  if(cur&&C.includes(cur))s.value=cur;
+}
+
+function startEdit(id){
+  const r=R.find(x=>x.id===id);if(!r)return;
+  editId=id;
+  document.getElementById('fTitle').textContent='Edit Reminder';
+  document.getElementById('btnSave').textContent='Save Changes';
+  document.getElementById('btnCancel').style.display='';
+  document.getElementById('fT').value=r.title;
+  populateCatDrop();document.getElementById('fC').value=r.category;
+  document.getElementById('fIV').value=r.interval.value;
+  document.getElementById('fIU').value=r.interval.unit;
+  document.getElementById('fSV').value=r.snooze.value;
+  document.getElementById('fSU').value=r.snooze.unit;
+  document.getElementById('fcard').scrollIntoView({behavior:'smooth'});
+}
+
+function cancelEdit(){
+  editId=null;
+  document.getElementById('fTitle').textContent='Add Reminder';
+  document.getElementById('btnSave').textContent='Add Reminder';
+  document.getElementById('btnCancel').style.display='none';
+  document.getElementById('fT').value='';
+  document.getElementById('fIV').value=1;document.getElementById('fIU').value='days';
+  document.getElementById('fSV').value=2;document.getElementById('fSU').value='hours';
+}
+
+document.getElementById('btnSave').addEventListener('click',()=>{
+  const t=document.getElementById('fT').value.trim();
+  if(!t){alert('Please enter a title.');return}
+  const data={
+    title:t,category:document.getElementById('fC').value,
+    interval:{value:Math.max(1,parseInt(document.getElementById('fIV').value)||1),unit:document.getElementById('fIU').value},
+    snooze:{value:Math.max(1,parseInt(document.getElementById('fSV').value)||1),unit:document.getElementById('fSU').value}
+  };
+  if(editId){const r=R.find(x=>x.id===editId);if(r)Object.assign(r,data)}
+  else R.push({id:uid(),...data,nextDue:new Date().toISOString(),state:'pending',createdAt:new Date().toISOString()});
+  saveAll();cancelEdit();renderManage();
+});
+document.getElementById('btnCancel').addEventListener('click',cancelEdit);
+
+function delR(id){
+  if(!confirm('Delete this reminder?'))return;
+  R=R.filter(r=>r.id!==id);sv(KR,R);renderManage();
+}
+
+// Categories
+function renderCats(){
+  const el=document.getElementById('catList');
+  if(!C.length){el.innerHTML='<p style="color:var(--muted);font-size:.9rem;padding:8px 0">No categories.</p>';return}
+  el.innerHTML=C.map((c,i)=>`<div class="ci" id="ci-${i}">
+    <span class="cn" id="cn-${i}">${esc(c)}</span>
+    <input type="text" id="ci-in-${i}" value="${esc(c)}" maxlength="40" style="display:none;flex:1">
+    <button class="btn btn-s btn-sm" data-ren="${i}">Rename</button>
+    <button class="btn btn-d btn-sm" data-cdt="${i}">Delete</button>
+  </div>`).join('');
+  el.querySelectorAll('[data-ren]').forEach(b=>b.addEventListener('click',()=>renCat(parseInt(b.dataset.ren),b)));
+  el.querySelectorAll('[data-cdt]').forEach(b=>b.addEventListener('click',()=>delCat(parseInt(b.dataset.cdt))));
+}
+
+function renCat(i,btn){
+  const nm=document.getElementById('cn-'+i),inp=document.getElementById('ci-in-'+i);
+  if(btn.textContent==='Save'){
+    const nv=inp.value.trim();
+    if(!nv)return;
+    if(C.includes(nv)&&nv!==C[i]){alert('Category already exists.');return}
+    const old=C[i];C[i]=nv;
+    R.forEach(r=>{if(r.category===old)r.category=nv});
+    saveAll();renderManage();
+  }else{
+    nm.style.display='none';inp.style.display='';inp.focus();btn.textContent='Save';
+  }
+}
+
+function delCat(i){
+  const cat=C[i],aff=R.filter(r=>r.category===cat);
+  if(aff.length){
+    const other=C.filter((_,j)=>j!==i);
+    if(!other.length){
+      if(!confirm(`Delete "${cat}"? ${aff.length} reminder(s) will have no category.`))return;
+      aff.forEach(r=>r.category='');
+    }else{
+      const ch=prompt(`"${cat}" has ${aff.length} reminder(s).\nReassign to (leave blank for none):\n${other.join(', ')}`);
+      if(ch===null)return;
+      const t=ch.trim();
+      if(t&&!other.includes(t)){alert(`"${t}" is not a valid category.`);return}
+      aff.forEach(r=>r.category=t);
+    }
+  }else if(!confirm(`Delete category "${cat}"?`))return;
+  C.splice(i,1);saveAll();renderManage();
+}
+
+document.getElementById('btnAddCat').addEventListener('click',()=>{
+  const r=document.getElementById('addCatRow');
+  r.style.display=r.style.display==='none'?'':'none';
+  if(r.style.display!=='none')document.getElementById('newCatIn').focus();
+});
+document.getElementById('btnSaveCat').addEventListener('click',()=>{
+  const v=document.getElementById('newCatIn').value.trim();
+  if(!v)return;if(C.includes(v)){alert('Already exists.');return}
+  C.push(v);saveAll();
+  document.getElementById('newCatIn').value='';
+  document.getElementById('addCatRow').style.display='none';
+  renderManage();
+});
+document.getElementById('newCatIn').addEventListener('keydown',e=>{
+  if(e.key==='Enter')document.getElementById('btnSaveCat').click();
+  if(e.key==='Escape')document.getElementById('btnCancelCat').click();
+});
+document.getElementById('btnCancelCat').addEventListener('click',()=>{
+  document.getElementById('newCatIn').value='';
+  document.getElementById('addCatRow').style.display='none';
+});
+
+// Export / Import
+document.getElementById('btnExport').addEventListener('click',()=>{
+  const blob=new Blob([JSON.stringify({reminders:R,categories:C,exportedAt:new Date().toISOString()},null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='reminders-'+new Date().toISOString().slice(0,10)+'.json';a.click();
+});
+document.getElementById('btnImport').addEventListener('click',()=>document.getElementById('importFile').click());
+document.getElementById('importFile').addEventListener('change',e=>{
+  const f=e.target.files[0];if(!f)return;
+  const rd=new FileReader();
+  rd.onload=ev=>{
+    try{
+      const d=JSON.parse(ev.target.result);
+      if(!Array.isArray(d.reminders))throw new Error('Invalid format');
+      const merge=confirm('Merge with existing?\nOK = Merge  |  Cancel = Replace all');
+      if(merge){
+        const ids=new Set(R.map(r=>r.id));
+        R=[...R,...d.reminders.filter(r=>!ids.has(r.id))];
+        if(Array.isArray(d.categories))d.categories.forEach(c=>{if(!C.includes(c))C.push(c)});
+      }else{R=d.reminders;C=Array.isArray(d.categories)?d.categories:['General']}
+      saveAll();renderAgenda();renderManage();alert('Import successful!');
+    }catch(err){alert('Import failed: '+err.message)}
+    e.target.value='';
+  };
+  rd.readAsText(f);
+});
+
+// Tabs
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');
+  document.getElementById('view-'+t.dataset.tab).classList.add('active');
+  if(t.dataset.tab==='agenda')renderAgenda();else renderManage();
+}));
+
+// Init
+applyTheme();renderAgenda();
+setInterval(renderAgenda,60000);
+</script>
+</body>
+</html>
