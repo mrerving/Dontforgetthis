@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Don't Forget This</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#7c6af7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="DFT">
+<link rel="apple-touch-icon" href="icon-192.png">
 <style>
 :root[data-theme="dark"]{--bg:#0f0f13;--card:#1a1a24;--border:#2a2a3a;--text:#e8e8f0;--muted:#8888a0;--accent:#7c6af7;--ob:#ff6b6b;--obg:rgba(255,107,107,.08);--btnp:#7c6af7;--btns:#2a2a3a;--btnst:#e8e8f0;--inp:#0f0f13;--inpb:#2a2a3a;--sop:.6}
 :root[data-theme="light"]{--bg:#f5f5f8;--card:#fff;--border:#e0e0ea;--text:#1a1a2e;--muted:#66667a;--accent:#6c5ce7;--ob:#e55353;--obg:rgba(229,83,83,.06);--btnp:#6c5ce7;--btns:#e8e8f2;--btnst:#1a1a2e;--inp:#fff;--inpb:#d0d0e0;--sop:.65}
@@ -635,6 +641,11 @@ document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
   document.getElementById('view-'+t.dataset.tab).classList.add('active');
   if(t.dataset.tab==='agenda')renderAgenda();else renderManage();
 }));
+
+// Service worker registration
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('./sw.js').catch(()=>{});
+}
 
 // Init
 document.getElementById('btnDownload').addEventListener('click',downloadApp);
