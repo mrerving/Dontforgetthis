@@ -161,6 +161,7 @@ let editId=null;
 
 function saveAll(){
   sv(KR,R);sv(KC,C);
+  opfsWrite();
   if(fileHandle&&fileStatus!=='needs-permission')writeFileData();
 }
 
@@ -170,6 +171,47 @@ function idbOpen(){return new Promise((res,rej)=>{const r=indexedDB.open(IDB_NAM
 async function idbGetHandle(){try{const db=await idbOpen();return new Promise((res,rej)=>{const t=db.transaction(IDB_STORE,'readonly');const r=t.objectStore(IDB_STORE).get('dataFile');r.onsuccess=e=>res(e.target.result??null);r.onerror=rej})}catch{return null}}
 async function idbSetHandle(fh){try{const db=await idbOpen();return new Promise((res,rej)=>{const t=db.transaction(IDB_STORE,'readwrite');t.objectStore(IDB_STORE).put(fh,'dataFile');t.oncomplete=res;t.onerror=rej})}catch{}}
 async function idbClearHandle(){try{const db=await idbOpen();return new Promise((res,rej)=>{const t=db.transaction(IDB_STORE,'readwrite');t.objectStore(IDB_STORE).delete('dataFile');t.oncomplete=res;t.onerror=rej})}catch{}}
+
+// OPFS helpers — persistent private file system that survives "Clear browsing data"
+const OPFS_SUPPORTED=typeof navigator.storage!=='undefined'&&typeof navigator.storage.getDirectory==='function';
+let _opfsWriting=false,_opfsPendingWrite=false;
+async function opfsWrite(){
+  if(!OPFS_SUPPORTED)return;
+  if(_opfsWriting){_opfsPendingWrite=true;return}
+  _opfsWriting=true;
+  try{
+    const root=await navigator.storage.getDirectory();
+    const fh=await root.getFileHandle('reminders.json',{create:true});
+    const w=await fh.createWritable();
+    await w.write(JSON.stringify({reminders:R,categories:C,updatedAt:new Date().toISOString()},null,2));
+    await w.close();
+  }catch{}finally{
+    _opfsWriting=false;
+    if(_opfsPendingWrite){_opfsPendingWrite=false;opfsWrite();}
+  }
+}
+async function opfsRead(){
+  if(!OPFS_SUPPORTED)return null;
+  try{
+    const root=await navigator.storage.getDirectory();
+    const fh=await root.getFileHandle('reminders.json');
+    const file=await fh.getFile();
+    const d=JSON.parse(await file.text());
+    if(!Array.isArray(d.reminders))return null;
+    return{reminders:d.reminders,categories:Array.isArray(d.categories)?d.categories:null};
+  }catch{return null}
+}
+async function initOpfs(){
+  if(!OPFS_SUPPORTED)return;
+  const data=await opfsRead();
+  if(!data){opfsWrite();return;}
+  R=data.reminders;
+  if(data.categories)C=data.categories;
+  sv(KR,R);sv(KC,C);
+  renderAgenda();
+  const mv=document.getElementById('view-manage');
+  if(mv.classList.contains('active'))renderManage();
+}
 
 // File System Access API state
 let fileHandle=null;
@@ -230,7 +272,7 @@ async function initFileSystem(){
     if(data){
       R=data.reminders;
       if(data.categories)C=data.categories;
-      sv(KR,R);sv(KC,C);
+      sv(KR,R);sv(KC,C);opfsWrite();
       renderAgenda();
       const mv=document.getElementById('view-manage');
       if(mv.classList.contains('active'))renderManage();
@@ -250,7 +292,7 @@ async function connectFile(){
     const[fh]=await showOpenFilePicker({id:'dft-data',startIn:'documents',types:[{description:'JSON data file',accept:{'application/json':['.json']}}],excludeAcceptAllOption:false});
     fileHandle=fh;await idbSetHandle(fh);
     const data=await readFileData();
-    if(data){R=data.reminders;if(data.categories)C=data.categories;sv(KR,R);sv(KC,C);}
+    if(data){R=data.reminders;if(data.categories)C=data.categories;sv(KR,R);sv(KC,C);opfsWrite();}
     await writeFileData();renderManage();renderAgenda();
   }catch(e){if(e.name!=='AbortError'){fileStatus='error';fileStatusMsg=e.message;renderFileStatus();}}
 }
@@ -269,7 +311,7 @@ async function reconnectFile(){
   const perm=await verifyPermission(fileHandle,true);
   if(perm==='granted'){
     const data=await readFileData();
-    if(data){R=data.reminders;if(data.categories)C=data.categories;sv(KR,R);sv(KC,C);renderAgenda();renderManage();}
+    if(data){R=data.reminders;if(data.categories)C=data.categories;sv(KR,R);sv(KC,C);opfsWrite();renderAgenda();renderManage();}
     fileStatus='synced';
   }else{fileStatus='needs-permission';}
   renderFileStatus();
@@ -283,13 +325,18 @@ function renderFileStatus(){
   const sec=document.getElementById('fileStatusSection');
   const bar=document.getElementById('agendaReconnectBar');
   if(!sec||!bar)return;
-  if(!FS_SUPPORTED){sec.style.display='none';bar.style.display='none';return}
+  if(!FS_SUPPORTED){
+    bar.style.display='none';
+    if(OPFS_SUPPORTED){sec.style.display='';document.getElementById('fileStatusText').innerHTML='<span class="fs-ok">✓ Auto-saved to private browser storage</span>';document.getElementById('fileActions').innerHTML='';}
+    else{sec.style.display='none';}
+    return;
+  }
   sec.style.display='';
   const txt=document.getElementById('fileStatusText');
   const acts=document.getElementById('fileActions');
   bar.style.display='none';
   if(fileStatus==='none'){
-    txt.innerHTML='<span class="fs-warn">No file connected — data lives in browser storage only</span>';
+    txt.innerHTML=OPFS_SUPPORTED?'<span class="fs-ok">✓ Auto-saved to private browser storage</span><br><span style="font-size:.8rem;opacity:.7">Connect a file to also sync across devices</span>':'<span class="fs-warn">No file connected — data lives in browser storage only</span>';
     acts.innerHTML='<button class="btn btn-p btn-sm" id="fa-open">Open existing file</button><button class="btn btn-s btn-sm" id="fa-new">Create new file</button>';
     acts.querySelector('#fa-open').onclick=connectFile;
     acts.querySelector('#fa-new').onclick=createFile;
@@ -652,7 +699,7 @@ document.getElementById('btnDownload').addEventListener('click',downloadApp);
 document.getElementById('btnReconnectAgenda').addEventListener('click',reconnectFile);
 applyTheme();renderAgenda();
 setInterval(renderAgenda,60000);
-if(FS_SUPPORTED)initFileSystem();
+initOpfs().then(()=>{if(FS_SUPPORTED)initFileSystem();renderFileStatus();});
 </script>
 </body>
 </html>
