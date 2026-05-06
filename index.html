@@ -121,7 +121,22 @@ hr.div{border:none;border-top:1px solid var(--border);margin:24px 0}
       <div class="frow"><label>Repeat Every</label>
         <div class="finline">
           <input type="number" id="fIV" min="1" value="1">
-          <select id="fIU"><option value="minutes">Minutes</option><option value="hours">Hours</option><option value="days" selected>Days</option><option value="weeks">Weeks</option><option value="months">Months</option><option value="years">Years</option></select>
+          <select id="fIU"><option value="minutes">Minutes</option><option value="hours">Hours</option><option value="days" selected>Days</option><option value="weeks">Weeks</option><option value="months">Months</option><option value="years">Years</option><option value="specific_dates">Specific Dates</option></select>
+        </div>
+        <div id="fDates" style="display:none;margin-top:10px">
+          <div style="font-size:.78rem;color:var(--muted);margin-bottom:8px">Up to 3 annual dates (repeats each year):</div>
+          <div class="finline" style="margin-bottom:6px">
+            <select id="fdM0" style="flex:1"><option value="">Month</option><option value="1">January</option><option value="2">February</option><option value="3">March</option><option value="4">April</option><option value="5">May</option><option value="6">June</option><option value="7">July</option><option value="8">August</option><option value="9">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option></select>
+            <input type="number" id="fdD0" min="1" max="31" placeholder="Day" style="width:70px">
+          </div>
+          <div class="finline" style="margin-bottom:6px">
+            <select id="fdM1" style="flex:1"><option value="">Month</option><option value="1">January</option><option value="2">February</option><option value="3">March</option><option value="4">April</option><option value="5">May</option><option value="6">June</option><option value="7">July</option><option value="8">August</option><option value="9">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option></select>
+            <input type="number" id="fdD1" min="1" max="31" placeholder="Day" style="width:70px">
+          </div>
+          <div class="finline">
+            <select id="fdM2" style="flex:1"><option value="">Month</option><option value="1">January</option><option value="2">February</option><option value="3">March</option><option value="4">April</option><option value="5">May</option><option value="6">June</option><option value="7">July</option><option value="8">August</option><option value="9">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option></select>
+            <input type="number" id="fdD2" min="1" max="31" placeholder="Day" style="width:70px">
+          </div>
         </div>
       </div>
       <div class="frow"><label>Default Snooze</label>
@@ -348,6 +363,17 @@ function addIv(date,iv){
   return d;
 }
 
+function nextSpecificDate(dates){
+  const now=new Date(),y=now.getFullYear();
+  const cands=[];
+  dates.forEach(({month,day})=>{
+    cands.push(new Date(y,month-1,day));
+    cands.push(new Date(y+1,month-1,day));
+  });
+  const future=cands.filter(d=>d>now).sort((a,b)=>a-b);
+  return future[0]||cands.sort((a,b)=>a-b)[0];
+}
+
 function fmtRel(iso){
   const d=new Date(iso),now=new Date(),diff=d-now,abs=Math.abs(diff);
   const mins=Math.floor(abs/6e4),hrs=Math.floor(abs/36e5),days=Math.floor(abs/864e5);
@@ -366,7 +392,12 @@ function fmtRel(iso){
   }
 }
 
-function fmtIv(iv){
+function fmtIv(r){
+  const iv=r.interval||r;
+  if(iv.unit==='specific_dates'&&r.specificDates?.length){
+    const mn=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return'Annual: '+r.specificDates.map(({month,day})=>mn[month-1]+' '+day).join(', ');
+  }
   const v=iv.value,u=iv.unit;
   return v==1?'Every '+u.slice(0,-1):'Every '+v+' '+u;
 }
@@ -452,7 +483,10 @@ function toggleSP(id,close=false){
 
 function doDone(id){
   const r=R.find(x=>x.id===id);if(!r)return;
-  r.nextDue=addIv(new Date(),r.interval).toISOString();r.state='pending';
+  if(r.interval.unit==='specific_dates'&&r.specificDates?.length)
+    r.nextDue=nextSpecificDate(r.specificDates).toISOString();
+  else r.nextDue=addIv(new Date(),r.interval).toISOString();
+  r.state='pending';
   saveAll();renderAgenda();
 }
 
@@ -477,7 +511,7 @@ function renderList(){
   el.innerHTML=R.map(r=>`<div class="li">
     <div class="li-info">
       <div class="li-title">${esc(r.title)}</div>
-      <div class="li-sub">${r.category?esc(r.category)+' · ':''}${fmtIv(r.interval)}</div>
+      <div class="li-sub">${r.category?esc(r.category)+' · ':''}${fmtIv(r)}</div>
     </div>
     <div class="li-acts">
       <button class="btn btn-s btn-sm" data-edit="${r.id}">Edit</button>
@@ -506,6 +540,10 @@ function startEdit(id){
   document.getElementById('fIU').value=r.interval.unit;
   document.getElementById('fSV').value=r.snooze.value;
   document.getElementById('fSU').value=r.snooze.unit;
+  const isSD=r.interval.unit==='specific_dates';
+  showDatePanel(isSD);
+  for(let i=0;i<3;i++){document.getElementById('fdM'+i).value='';document.getElementById('fdD'+i).value='';}
+  if(isSD&&r.specificDates)r.specificDates.forEach(({month,day},i)=>{if(i<3){document.getElementById('fdM'+i).value=month;document.getElementById('fdD'+i).value=day;}});
   document.getElementById('fcard').scrollIntoView({behavior:'smooth'});
 }
 
@@ -517,18 +555,46 @@ function cancelEdit(){
   document.getElementById('fT').value='';
   document.getElementById('fIV').value=1;document.getElementById('fIU').value='days';
   document.getElementById('fSV').value=2;document.getElementById('fSU').value='hours';
+  showDatePanel(false);
+  for(let i=0;i<3;i++){document.getElementById('fdM'+i).value='';document.getElementById('fdD'+i).value='';}
 }
+
+function showDatePanel(show){
+  document.getElementById('fDates').style.display=show?'':'none';
+  document.getElementById('fIV').style.display=show?'none':'';
+}
+document.getElementById('fIU').addEventListener('change',function(){showDatePanel(this.value==='specific_dates')});
 
 document.getElementById('btnSave').addEventListener('click',()=>{
   const t=document.getElementById('fT').value.trim();
   if(!t){alert('Please enter a title.');return}
+  const unit=document.getElementById('fIU').value;
   const data={
     title:t,category:document.getElementById('fC').value,
-    interval:{value:Math.max(1,parseInt(document.getElementById('fIV').value)||1),unit:document.getElementById('fIU').value},
+    interval:{value:Math.max(1,parseInt(document.getElementById('fIV').value)||1),unit},
     snooze:{value:Math.max(1,parseInt(document.getElementById('fSV').value)||1),unit:document.getElementById('fSU').value}
   };
-  if(editId){const r=R.find(x=>x.id===editId);if(r)Object.assign(r,data)}
-  else R.push({id:uid(),...data,nextDue:new Date().toISOString(),state:'pending',createdAt:new Date().toISOString()});
+  if(unit==='specific_dates'){
+    const dates=[];
+    for(let i=0;i<3;i++){
+      const m=parseInt(document.getElementById('fdM'+i).value);
+      const d=parseInt(document.getElementById('fdD'+i).value);
+      if(m&&d>=1&&d<=31)dates.push({month:m,day:d});
+    }
+    if(!dates.length){alert('Please add at least one date.');return}
+    data.specificDates=dates;
+  }
+  const nextDue=(unit==='specific_dates'&&data.specificDates?.length)
+    ?nextSpecificDate(data.specificDates).toISOString()
+    :new Date().toISOString();
+  if(editId){
+    const r=R.find(x=>x.id===editId);
+    if(r){
+      Object.assign(r,data);
+      r.nextDue=nextDue;
+      if(unit!=='specific_dates')delete r.specificDates;
+    }
+  }else R.push({id:uid(),...data,nextDue,state:'pending',createdAt:new Date().toISOString()});
   saveAll();cancelEdit();renderManage();
 });
 document.getElementById('btnCancel').addEventListener('click',cancelEdit);
