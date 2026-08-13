@@ -121,7 +121,7 @@ hr.div{border:none;border-top:1px solid var(--border);margin:24px 0}
       <div class="frow"><label>Repeat Every</label>
         <div class="finline">
           <input type="number" id="fIV" min="1" value="1">
-          <select id="fIU"><option value="minutes">Minutes</option><option value="hours">Hours</option><option value="days" selected>Days</option><option value="weeks">Weeks</option><option value="months">Months</option><option value="years">Years</option><option value="specific_dates">Specific Dates</option></select>
+          <select id="fIU"><option value="none">Does not repeat</option><option value="minutes">Minutes</option><option value="hours">Hours</option><option value="days" selected>Days</option><option value="weeks">Weeks</option><option value="months">Months</option><option value="years">Years</option><option value="specific_dates">Specific Dates</option></select>
         </div>
         <div id="fDates" style="display:none;margin-top:10px">
           <div style="font-size:.78rem;color:var(--muted);margin-bottom:8px">Up to 3 annual dates (repeats each year):</div>
@@ -441,6 +441,7 @@ function fmtRel(iso){
 
 function fmtIv(r){
   const iv=r.interval||r;
+  if(iv.unit==='none')return'Does not repeat';
   if(iv.unit==='specific_dates'&&r.specificDates?.length){
     const mn=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     return'Annual: '+r.specificDates.map(({month,day})=>mn[month-1]+' '+day).join(', ');
@@ -530,6 +531,11 @@ function toggleSP(id,close=false){
 
 function doDone(id){
   const r=R.find(x=>x.id===id);if(!r)return;
+  if(r.interval.unit==='none'){
+    R=R.filter(x=>x.id!==id);
+    saveAll();renderAgenda();
+    return;
+  }
   if(r.interval.unit==='specific_dates'&&r.specificDates?.length)
     r.nextDue=nextSpecificDate(r.specificDates).toISOString();
   else r.nextDue=addIv(new Date(),r.interval).toISOString();
@@ -588,7 +594,7 @@ function startEdit(id){
   document.getElementById('fSV').value=r.snooze.value;
   document.getElementById('fSU').value=r.snooze.unit;
   const isSD=r.interval.unit==='specific_dates';
-  showDatePanel(isSD);
+  updateIntervalPanel();
   for(let i=0;i<3;i++){document.getElementById('fdM'+i).value='';document.getElementById('fdD'+i).value='';}
   if(isSD&&r.specificDates)r.specificDates.forEach(({month,day},i)=>{if(i<3){document.getElementById('fdM'+i).value=month;document.getElementById('fdD'+i).value=day;}});
   document.getElementById('fcard').scrollIntoView({behavior:'smooth'});
@@ -602,15 +608,16 @@ function cancelEdit(){
   document.getElementById('fT').value='';
   document.getElementById('fIV').value=1;document.getElementById('fIU').value='days';
   document.getElementById('fSV').value=2;document.getElementById('fSU').value='hours';
-  showDatePanel(false);
+  updateIntervalPanel();
   for(let i=0;i<3;i++){document.getElementById('fdM'+i).value='';document.getElementById('fdD'+i).value='';}
 }
 
-function showDatePanel(show){
-  document.getElementById('fDates').style.display=show?'':'none';
-  document.getElementById('fIV').style.display=show?'none':'';
+function updateIntervalPanel(){
+  const unit=document.getElementById('fIU').value;
+  document.getElementById('fDates').style.display=unit==='specific_dates'?'':'none';
+  document.getElementById('fIV').style.display=(unit==='specific_dates'||unit==='none')?'none':'';
 }
-document.getElementById('fIU').addEventListener('change',function(){showDatePanel(this.value==='specific_dates')});
+document.getElementById('fIU').addEventListener('change',updateIntervalPanel);
 
 document.getElementById('btnSave').addEventListener('click',()=>{
   const t=document.getElementById('fT').value.trim();
