@@ -41,7 +41,7 @@ All CSS, HTML, and JavaScript are in `index.html`. The CSS uses minified shortha
   category: string,
   interval: {
     value: number,
-    unit: 'minutes'|'hours'|'days'|'weeks'|'months'|'years'|'specific_dates'
+    unit: 'none'|'minutes'|'hours'|'days'|'weeks'|'months'|'years'|'specific_dates'
   },
   specificDates?: [     // only present when unit === 'specific_dates'
     { month: number, day: number }  // up to 3 annual dates
@@ -53,18 +53,19 @@ All CSS, HTML, and JavaScript are in `index.html`. The CSS uses minified shortha
 }
 ```
 
-`doDone(id)` advances `nextDue`: for `specific_dates` it uses `nextSpecificDate()` to find the nearest upcoming annual date; for all other units it calls `addIv()` with the reminder's interval. `doSnooze(id)` sets `nextDue` to now + snooze duration and flips `state` to `'snoozed'`. `wakeSnoozes()` converts snoozed reminders back to `pending` when their `nextDue` passes; it runs at the top of every `renderAgenda()` call and on a 60-second `setInterval`.
+`doDone(id)` deletes the reminder when the unit is `none`; otherwise it advances `nextDue`: for `specific_dates` it uses `nextSpecificDate()` to find the nearest upcoming annual date; for all other units it calls `addIv()` with the reminder's interval. `doSnooze(id)` sets `nextDue` to now + snooze duration and flips `state` to `'snoozed'`. `wakeSnoozes()` converts snoozed reminders back to `pending` when their `nextDue` passes; it runs at the top of every `renderAgenda()` call and on a 60-second `setInterval`.
 
 ### Interval types
+- **One-time** (`none`): shown as "Does not repeat". `interval.value` is ignored. Marking it Done removes it from `R`.
 - **Time-based** (`minutes`, `hours`, `days`, `weeks`, `months`, `years`): `addIv(date, interval)` advances a date by the given quantity and unit.
 - **Specific dates** (`specific_dates`): up to 3 month/day pairs stored in `specificDates[]`. `nextSpecificDate(dates)` calculates the nearest upcoming occurrence across current and next year.
 
 ### Two views
 - **Agenda** (`renderAgenda`): groups reminders into Overdue / Today / Tomorrow / Upcoming via `groupR()`. Snoozed reminders are excluded from all groups.
-- **Manage** (`renderManage`): CRUD for reminders and categories, plus the file-sync status panel and export/import controls. The form toggles the specific-dates date picker panel via `showDatePanel()` when `fIU` (interval unit select) changes.
+- **Manage** (`renderManage`): CRUD for reminders and categories, plus the file-sync status panel and export/import controls. The form toggles the specific-dates date picker panel via `updateIntervalPanel()` when `fIU` (interval unit select) changes; it also hides the interval value input for `none` and `specific_dates`.
 
 ### PWA / offline
-`sw.js` uses a cache-first strategy (`dft-v2` cache). On install it caches all five assets and calls `self.skipWaiting()` to activate immediately. On activate it purges stale caches and calls `self.clients.claim()` to take control of all open tabs. The cache name is the only version identifier — bump it in `sw.js` when assets change.
+`sw.js` uses a cache-first strategy (`dft-v3` cache). On install it caches all five assets and calls `self.skipWaiting()` to activate immediately. On activate it purges stale caches and calls `self.clients.claim()` to take control of all open tabs. The cache name is the only version identifier — bump it in `sw.js` when assets change.
 
 ### Standalone download
 The download button fetches the live page HTML and offers it as `dont-forget-this.html`, producing a fully self-contained offline copy with no server dependency.
